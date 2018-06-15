@@ -67,11 +67,11 @@ def update():
     global plot
     global text
 
-    #try:
-    timestamp, scan = laser.get_filtered_dist(dmax=10000)
-    #except Exception as e:
-    #msg_text.insert(1.0,"[ERR] "+str(e)+time.strftime("%X")+"\n")
-    #msg_text.tag_add("RED", "1.0") 
+    try:
+        timestamp, scan = laser.get_filtered_dist(dmax=10000)
+    except Exception as e:
+        msg_text.insert(1.0,"[ERR] "+str(e)+time.strftime("%X")+"\n")
+        msg_text.tag_add("RED", "1.0") 
     if plot_on_off_rad.get() == 1:  # and plt.get_fignums(): #PlotOnRadio selected and has at least 1 figure
         point_R, point_theta = range_plot(range_point)  
         point_R.append(point_R[0])
@@ -88,6 +88,7 @@ def update():
         plt.draw()
         plt.pause(0.001)
     win.after(10,update)
+
         #while osc_on_off_rad.get() == 1 :
 
 
