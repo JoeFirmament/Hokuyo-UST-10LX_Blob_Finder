@@ -117,7 +117,7 @@ def read_conf():
     global range_point
 
     cf = configparser.ConfigParser()
-    cf.read("config.conf")
+    cf.read("./config.conf")
     sensor_ip = cf.get("SENSOR", "sensor_ip")
     sensor_port = cf.getint("SENSOR", "sensor_port")
     osc_host_ip = cf.get("OSC", "OSC_host_ip")
@@ -312,7 +312,7 @@ osc_off_rad.grid(column=1,row=2)
 msg_text.tag_config('RED', background='red')
 
 try:
-    laser = HokuyoLX(addr=('192.168.0.10', 10940),info=False)
+    laser = HokuyoLX(addr=('192.168.0.10', 10940),info=False,buf=1024,time_tolerance=1000,convert_time=False)
     msg_text.insert(1.0,"[MSG]Sensor connected  "+time.strftime("%X")+"\n")
     msg_text.tag_remove("RED", "1.0") 
 
