@@ -11,6 +11,7 @@ from matplotlib.projections import PolarAxes
 from matplotlib.transforms import Affine2D
 from mpl_toolkits.axisartist import SubplotHost
 from mpl_toolkits.axisartist import GridHelperCurveLinear
+from collections import Iterator
 
 import matplotlib
 import time
@@ -34,20 +35,65 @@ marker_size_threshold = 100
 continuePlotting = False
 range_point = [(area_left, area_far), (area_right, area_far), (area_right, area_near), (area_left, area_near)]
 start_flag = False
+errFlag =False
 
 
-def cart2pol(x, y):
+def cart2pol(x, y): # 笛卡尔坐标转换为极坐标
     rho = np.sqrt(x**2 + y**2)
     phi = np.arctan2(y, x)
     return(rho, phi)
 
+def pol2cart(rho, phi): # 极坐标转换为笛卡尔坐标系
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return(x, y)
 
-def range_plot(range_list):
+def pol2cart_tuple(polar_point_list):
+    # polar_point_list[0] as phi;[1] as rho
+    x = polar_point_list[1] * np.cos(polar_point_list[0])
+    y = polar_point_list[1] * np.sin(polar_point_list[0])
+    # 这里把笛卡尔坐标系的y轴与极坐标系的极轴做对齐，方便观察理解。 笛卡尔坐标系逆时针旋转90°
+    # x' = xcos(theta)+ysin(theta);y' = ycos(theta)-xsin(theta) ,theta = -90°
+    return[-y, x]
+
+def cart2pol_tuple(cart_point_list):
+    rho = np.sqrt(cart_point_list[0]**2 + cart_point_list[1]**2)
+    phi = np.arctan2(-cart_point_list[0], cart_point_list[1]) # 这里x和y互换，直接旋转90°，变回原极坐标
+    return(phi,rho)
+
+
+def consecutive(array, stepsize=100):
+    scan_filter_array = list(np.hsplit(array,2))   #这里也可以用list 的zip(*list)方法
+    scan_filter_x = np.ravel(scan_filter_array[0])
+    scan_filter_y = np.ravel(scan_filter_array[1])
+    x_split = np.split(scan_filter_x, np.where(np.diff(scan_filter_x) >= stepsize)[0]+1)
+    y_split = np.split(scan_filter_y, np.where(np.diff(scan_filter_x) >= stepsize)[0]+1)
+    points = [n for n in range(len(x_split ))]
+    for i in range(len(x_split )):
+        points[i]=list(zip(x_split[i],y_split[i]))
+    return points
+
+def midpoint_finder(point_list):
+    mid_points = [n for n in range(len(point_list))]
+    for i in range(len(point_list)) :
+        mid_points[i] = [(point_list[i][0][0] + point_list[i][len(point_list[i])-1][0])/2,(point_list[i][0][1] + point_list[i][len(point_list[i])-1][1])/2]
+    return mid_points
+
+
+def cart_fliter(cart_list):
+    if cart_list[0]>area_left and cart_list[0]<area_right and cart_list[1]>area_near and cart_list[1]<area_far:
+        return True
+    else:
+        return False
+
+def range_plot(range_list): # 转换扫描范围笛卡尔坐标系点为极坐标，直接转换做了极轴和y轴的对齐
     range_polar = [(),  (), (), ()]
     for i in range(len(range_list)):
         range_polar[i] = cart2pol(range_list[i][0], range_list[i][1])
-    pointTheta, pointR = zip(*range_polar)
+    pointTheta, pointR = zip(*range_polar) # Rhi和theta直接互换，对齐坐标系
     return list(pointTheta), list(pointR)
+
+
 
 
 def change_state():
@@ -66,28 +112,64 @@ def update():
     global laser
     global plot
     global text
+    global errFlag
 
     try:
-        timestamp, scan = laser.get_filtered_dist(dmax=10000)
+        if errFlag is True:
+            msg_text.insert(1.0,"[ERR]"+"Check Sensor connection and reopen the app"+time.strftime("%X")+"\n")
+            msg_text.tag_add("RED", "1.0")   
+            return 
+        import time
+        start_time = time.time()
+
+        timestamp, scan = laser.get_filtered_dist(start=180,end=900,dmax=10000)
+        # timestamp 是一个int类型，scan是[弧度，距离]的2维列表集合；
+        # start=180，end=900，是step的范围，lx10的step是1080steps，1080*1/6得到180，1080*5/6=900，只需要正前方的0°~180°的识别范围
+        # print(scan[0][0]) 得到弧度值 -1.57,对应极坐标的270°/-90°
+        # print(scan[720][0]) 得到弧度值1.57，对应90°
+        # print(scan.size) 所占字节数 2162
+        # print(scan.ndim) 维度 2 
+        # print(scan.shape)  #形状  (1081,2) 
+        # scan 是一个 1081行2列的List
+
+        scan_cart = map(pol2cart_tuple,scan)  #极坐标转为笛卡尔坐标，return为笛卡尔坐标系list
+        scan_cart = list(scan_cart)
+        scan_cart_filter = filter(cart_fliter,scan_cart) #根据area range值，得到需要的扫描区域的笛卡尔坐标系点list
+        #print(list(scan_cart_filter))
+        points = consecutive(np.asarray(list(scan_cart_filter)),100) #把得到的点非组，根据x轴的间隙，如果超过100mm，就分为另外一组；可以考虑根据Y轴再分一遍
+        midpoints = midpoint_finder(points)
+        print(midpoints)
+        print("-------------------end-----------------------          \n")
+
+
+       
     except Exception as e:
         msg_text.insert(1.0,"[ERR] "+str(e)+time.strftime("%X")+"\n")
         msg_text.tag_add("RED", "1.0") 
-    if plot_on_off_rad.get() == 1:  # and plt.get_fignums(): #PlotOnRadio selected and has at least 1 figure
-        point_R, point_theta = range_plot(range_point)  
-        point_R.append(point_R[0])
-        point_theta.append(point_theta[0])
-        #plot2 = ax.plot([x-np.pi/2 for x in point_theta], point_R, '--', label="Range") #  transform plot cw 90 degree
+    if plot_on_off_rad.get() == 1:  
+
+        #   plot显示的情况下，每个循环把范围画一次
+        #   point_R, point_theta = range_plot(range_point)  
+        #   point_R.append(point_R[0]) # 
+        #   point_theta.append(point_theta[0])
+        #   plot2 = ax.plot([x-np.pi/2 for x in point_theta], point_R, '--', label="Range") #  transform plot cw 90 degree
+
         if rad_selected.get() == 2:  # line mode
             plot.set_linestyle('--')
             plot.set_marker("_")
         elif rad_selected.get() == 1:  #dot mode
             plot.set_marker(",")
             plot.set_linestyle(" ")
-        plot.set_data(*scan.T) # line mode
+        plot.set_data(*scan.T) # line mode *scan.T 意思是将scan转置矩阵后，unpack ,把每个元素都代进函数 
+
+        #scan_pol_filter = map(cart2pol_tuple,scan_cart_filter) # 过滤后的扫描区笛卡尔坐标系值，转为极坐标点list
+        #plot.set_data(*np.array(list(scan_pol_filter)).T) #根据area range值，过滤后的数据再转回极坐标，显示在图像上。
+
         text.set_text('t: %d' % timestamp) 
         plt.draw()
-        plt.pause(0.001)
-    win.after(10,update)
+        print("--- %s seconds ---" % (time.time() - start_time))
+
+    win.after(5,update)
 
         #while osc_on_off_rad.get() == 1 :
 
@@ -165,8 +247,12 @@ def write_conf():
     osc_host_port = sVar_osc_host_port.get()
     area_left = sVar_area_left.get()
     area_right = sVar_area_right.get()
+    area_far = sVar_area_far.get()
+    area_near =sVar_area_near.get()
     map_left = sVar_map_left.get()
     map_right = sVar_map_right.get()
+    map_near = sVar_map_near.get()
+    map_far = sVar_map_far.get()
     cf.read("config.conf")
     cf.set("SENSOR", "sensor_ip", sensor_ip)
     cf.set("SENSOR", "sensor_port", str(sensor_port))
@@ -174,8 +260,13 @@ def write_conf():
     cf.set("OSC", "OSC_host_port", str(osc_host_port))
     cf.set("AREA", "area_left", str(area_left))
     cf.set("AREA", "area_right", str(area_right))
+    cf.set("AREA","area_near",str(area_near))
+    cf.set("AREA","area_far",str(area_far))
+    cf.set("AREA","map_near",str(map_near))
+    cf.set("AREA","map_far",str(map_far))
     cf.set("AREA", "map_left", str(map_left))
     cf.set("AREA", "map_right", str(map_right))
+
     with open('config.conf', 'w') as configfile:
         cf.write(configfile)
 
@@ -232,11 +323,8 @@ plt.style.use('seaborn-white')
 plt.ion()
 fig = plt.figure(figsize=(8, 8),dpi=80) 
 fig.canvas.set_window_title("By INT++ ")
-
 ax = plt.subplot(111, projection='polar')
-
 ax.set_title('Scanning Figure', fontstyle='italic')
-
 ax.set_theta_zero_location('N')
 plot = ax.plot([], [], ',')[0]
 point_R, point_theta = range_plot(range_point)  
@@ -316,10 +404,10 @@ try:
     msg_text.insert(1.0,"[MSG]Sensor connected  "+time.strftime("%X")+"\n")
     msg_text.tag_remove("RED", "1.0") 
 
-
 except  Exception as e:
     msg_text.insert(1.0,"[ERR]Sensor connect failed "+time.strftime("%X")+"\n")
     msg_text.tag_add("RED", "1.0") 
+    errFlag = True
 
-win.after(10,update)
+win.after(5,update)
 win.mainloop()
