@@ -27,6 +27,7 @@ range_point = [(area_left, area_far), (area_right, area_far),
                (area_right, area_near), (area_left, area_near)]
 start_flag = False
 errFlag = False
+debug_ON = False
 plot_limit = 5000
 OSC_msg_raw = []
 
@@ -187,6 +188,7 @@ def update():
     global plot_limit
     global blob_size_threshold
     global OSC_msg_raw
+    global debug_ON
 
     try:
         if errFlag is True:
@@ -221,7 +223,8 @@ def update():
             msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
             osc_send(msg, "aclientname")
             osc_process()
-            print(OSC_msg_raw)
+            if debug_ON:
+                print(OSC_msg_raw)
     except Exception as e:
         print("Sensor msg rev failed\n")
 
@@ -271,23 +274,25 @@ np.set_printoptions(suppress=True)
 sys.setrecursionlimit(10000)  # python会报一个递归错误，这里设置最大递归数量 update  是一个递归函数
 parser = argparse.ArgumentParser()
 parser.add_argument("-l","--log",help="print blob positon")
-if args.log:
-    print("withLog")
-parser.paser_argrs()
+args = parser.parse_args()
+if args.log =='ON':
+    debug_ON = True
 
 read_conf()
 # Start the system.
 osc_startup()
 # Make client channels to send packets.
-osc_udp_client("127.0.0.1", 12345, "aclientname")
+osc_udp_client(osc_host_ip, int(osc_host_port), "aclientname")
+
 try:
     laser = HokuyoLX(
-        addr=('192.168.0.10', 10940),
+        addr=(str(sensor_ip), int(sensor_port)),
         info=False,
         buf=1024,
         time_tolerance=1000,
         convert_time=False)
 except Exception as e:
+    print(e)
     print("[ERR]Sensor connect failed " + time.strftime("%X") + "\n")
     errFlag = True
 while True:

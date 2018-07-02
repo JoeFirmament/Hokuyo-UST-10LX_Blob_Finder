@@ -403,7 +403,7 @@ sys.setrecursionlimit(10000)  # python会报一个递归错误，这里设置最
 osc_startup()
 
 # Make client channels to send packets.
-osc_udp_client("127.0.0.1", 12345, "aclientname")
+osc_udp_client(osc_host_ip, int(osc_host_port), "aclientname")
 start_time = time.time()  # 测试运行时间
 win = tk.Tk()  # 顶级容器
 rad_selected = tk.IntVar()
@@ -674,7 +674,7 @@ msg_text.tag_config('RED', background='red')
 
 try:
     laser = HokuyoLX(
-        addr=('192.168.0.10', 10940),
+        addr=(str(sensor_ip), int(sensor_port)),
         info=False,
         buf=1024,
         time_tolerance=1000,
