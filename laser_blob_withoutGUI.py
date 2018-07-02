@@ -6,6 +6,7 @@ import math
 import time
 from osc4py3.as_eventloop import *
 from osc4py3 import oscbuildparse
+import argparse
 
 sensor_ip = "192.168.0.10"
 sensor_port = 1090
@@ -268,12 +269,17 @@ def read_conf():
 
 np.set_printoptions(suppress=True)
 sys.setrecursionlimit(10000)  # python会报一个递归错误，这里设置最大递归数量 update  是一个递归函数
+parser = argparse.ArgumentParser()
+parser.add_argument("-l","--log",help="print blob positon")
+if args.log:
+    print("withLog")
+parser.paser_argrs()
+
+read_conf()
 # Start the system.
 osc_startup()
 # Make client channels to send packets.
 osc_udp_client("127.0.0.1", 12345, "aclientname")
-start_time = time.time()  # 测试运行时间
-read_conf()
 try:
     laser = HokuyoLX(
         addr=('192.168.0.10', 10940),
