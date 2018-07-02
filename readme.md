@@ -10,6 +10,7 @@
 
  > 1. 软件依赖config.conf文件，必须同目录下有该文件，并且文件格式，依照该要求[示例](https://gist.github.com/JoeFirmament/30fc971251f6ee42eeffca3723913f69)。
  > 2. 软件功能如下图所示
+ 
 ![Snipaste_2018-06-28_19-22-22.png](https://upload-images.jianshu.io/upload_images/1411122-086d630029199a3d.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 ![Snipaste_2018-06-28_19-27-54.png](https://upload-images.jianshu.io/upload_images/1411122-90e35fbe89ddb24f.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 

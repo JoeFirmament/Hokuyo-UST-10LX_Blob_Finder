@@ -1,0 +1,1 @@
+pyinstaller -w -F -i "quill.ico" "laser_marker_finder.py"
