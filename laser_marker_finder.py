@@ -177,7 +177,6 @@ def change_state():
 def print_osc_msg():
     global msg_text
     global OSC_msg_raw
-
     msg_text.insert(1.0,
                     "/blob " + ' '.join(str(e) for e in OSC_msg_raw) + "\n")
     msg_text.tag_add("YELLOW", "1.0")
@@ -195,9 +194,13 @@ def update():
     global plot_marker
     global start_time
     global mode_filter
+    global mode_send
     global plot_limit
     global blob_size_threshold
+    global area_far, area_left, area_near, area_right
     global OSC_msg_raw
+    midpoints = []
+    scan_pol_filter = []
 
     try:
         if errFlag is True:
@@ -240,8 +243,16 @@ def update():
 
                 OSC_msg_raw.append(len(midpoints))
                 for i in range(len(midpoints)):
-                    OSC_msg_raw.append(float(midpoints[i][0]))
-                    OSC_msg_raw.append(float(midpoints[i][1]))
+                    if mode_send.get() == 1:
+                        #为了配合之前的C++雷达代码，协议按照之前的方式来写。
+                        OSC_msg_raw.append(float(midpoints[i][0])/float(abs(float(area_right)-float(area_left))))   # [-0.5,0.5]
+                        OSC_msg_raw.append((float(midpoints[i][1])-float(area_near))/float(abs(float(area_far)-float(area_near))))   # [0,1]
+                        OSC_msg_raw.append(float(0.0))
+                    # 下面是正常代码
+                    elif mode_send.get() == 0:
+                        OSC_msg_raw.append(float(midpoints[i][0]))
+                        OSC_msg_raw.append(float(midpoints[i][1]))
+                        OSC_msg_raw.append(float(0.0))
                 msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
                 osc_send(msg, "aclientname")
                 osc_process()
@@ -270,10 +281,10 @@ def update():
             plot.set_linestyle(" ")
             plot.set_markersize(16)
         if autoscale_rad.get() == 1:  # 自动缩放开启
-            plot.set_data(*np.array(scan_pol_filter).T
-                          )  # 根据area range值，过滤后的数据再转回极坐标，显示在图像上。
+            if len(midpoints)>0:
+                plot.set_data(*np.array(scan_pol_filter).T)  # 根据area range值，过滤后的数据再转回极坐标，显示在图像上。
             # ax.relim()
-            ax.set_rlim(0, plot_limit, 1)
+                ax.set_rlim(0, plot_limit, 1)
             # ax.autoscale_view(True,True,True)
         elif autoscale_rad.get() == 0:
             ax.set_rmax(10000)
@@ -399,11 +410,7 @@ def write_conf():
 np.set_printoptions(suppress=True)
 
 sys.setrecursionlimit(10000)  # python会报一个递归错误，这里设置最大递归数量 update  是一个递归函数
-# Start the system.
-osc_startup()
 
-# Make client channels to send packets.
-osc_udp_client(osc_host_ip, int(osc_host_port), "aclientname")
 start_time = time.time()  # 测试运行时间
 win = tk.Tk()  # 顶级容器
 rad_selected = tk.IntVar()
@@ -411,9 +418,11 @@ osc_on_off_rad = tk.IntVar()
 plot_on_off_rad = tk.IntVar()
 autoscale_rad = tk.IntVar()
 mode_filter = tk.IntVar()
+mode_send = tk.IntVar()
+mode_send.set(1)
 autoscale_rad.set(0)
 plot_on_off_rad.set(3)
-osc_on_off_rad.set(3)
+osc_on_off_rad.set(1)
 mode_filter.set(1)
 
 win.title("UST-10 to OSC by Quill")
@@ -452,6 +461,11 @@ msg_fr = tk.LabelFrame(win, text="MSG", bg='light cyan')
 msg_fr.grid(column=0, row=6, padx=2, pady=4)
 
 read_conf()
+# Start the system.
+osc_startup()
+# Make client channels to send packets
+osc_udp_client(str(osc_host_ip), int(osc_host_port), "aclientname")
+#osc_udp_client("127.0.0.1", 12345, "aclientname")
 matplotlib.use('tkagg')
 # plt.style.use("ggplot")
 # plt.style.use('fivethirtyeight')
@@ -653,12 +667,26 @@ cart_filter_rad = tk.Radiobutton(
     variable=mode_filter,
     bg='light cyan',
     width=15)
+map_mode_rad = tk.Radiobutton(
+    control_fr,
+    text='MapMode',
+    value=1,
+    variable=mode_send,
+    bg='light cyan',
+    width=15)
+raw_mode_rad = tk.Radiobutton(
+    control_fr,
+    text='RawMode',
+    value=0,
+    variable=mode_send,
+    bg='light cyan',
+    width=15)
 
 msg_text = tk.Text(msg_fr, width=40, height=8)
 msg_text.grid(column=0, row=0)
 
-load_conf_btn.grid(column=0, row=5)
-write_conf_btn.grid(column=1, row=5)
+load_conf_btn.grid(column=0, row=6)
+write_conf_btn.grid(column=1, row=6)
 start_btn.grid(column=0, row=7)
 pixel_rad.grid(column=0, row=0)
 line_rad.grid(column=1, row=0)
@@ -670,6 +698,8 @@ autoscale_on_rad.grid(column=0, row=3)
 autoscale_off_rad.grid(column=1, row=3)
 polar_filter_rad.grid(column=0, row=4)
 cart_filter_rad.grid(column=1, row=4)
+map_mode_rad.grid(column=0, row=5)
+raw_mode_rad.grid(column=1, row=5)
 msg_text.tag_config('RED', background='red')
 
 try:

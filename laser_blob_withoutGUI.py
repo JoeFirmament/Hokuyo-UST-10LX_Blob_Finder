@@ -28,6 +28,7 @@ range_point = [(area_left, area_far), (area_right, area_far),
 start_flag = False
 errFlag = False
 debug_ON = False
+map_ON = True
 plot_limit = 5000
 OSC_msg_raw = []
 
@@ -189,6 +190,9 @@ def update():
     global blob_size_threshold
     global OSC_msg_raw
     global debug_ON
+    global map_ON
+    midpoints = []
+    scan_pol_filter = []
 
     try:
         if errFlag is True:
@@ -218,8 +222,14 @@ def update():
             OSC_msg_raw.clear()
             OSC_msg_raw.append(len(midpoints))
             for i in range(len(midpoints)):
-                OSC_msg_raw.append(float(midpoints[i][0]))
-                OSC_msg_raw.append(float(midpoints[i][1]))
+                if map_ON == False:
+                    OSC_msg_raw.append(float(midpoints[i][0]))
+                    OSC_msg_raw.append(float(midpoints[i][1]))
+                    OSC_msg_raw.append(float(0.0))
+                else:
+                    OSC_msg_raw.append(float(midpoints[i][0])/float(abs(float(area_right)-float(area_left))))   # [-0.5,0.5]
+                    OSC_msg_raw.append((float(midpoints[i][1])-float(area_near))/float(abs(float(area_far)-float(area_near))))   # [0,1]
+                    OSC_msg_raw.append(float(0.0))    
             msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
             osc_send(msg, "aclientname")
             osc_process()
@@ -247,6 +257,8 @@ def read_conf():
     global range_point
     global plot_limit
     global blob_size_threshold
+    global debug_ON
+    global map_ON
 
     cf = configparser.ConfigParser()
     cf.read("./config.conf")
@@ -270,15 +282,22 @@ def read_conf():
                    (area_right, area_near), (area_left, area_near)]
     plot_limit = get_plot_limit(area_left, area_right, area_far)
 
-np.set_printoptions(suppress=True)
-sys.setrecursionlimit(10000)  # python会报一个递归错误，这里设置最大递归数量 update  是一个递归函数
-parser = argparse.ArgumentParser()
-parser.add_argument("-l","--log",help="print blob positon")
-args = parser.parse_args()
-if args.log =='ON':
-    debug_ON = True
 
 read_conf()
+parser = argparse.ArgumentParser()
+parser.add_argument("-l", "--log", help="Print debug info ")
+parser.add_argument("-m", "--map", help="Send osc msg in map mode")
+
+
+args = parser.parse_args()
+if args.log == 'ON':
+    debug_ON = True
+
+if args.map == 'OFF':
+    map_ON = False
+
+
+
 # Start the system.
 osc_startup()
 # Make client channels to send packets.
