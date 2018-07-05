@@ -22,3 +22,4 @@
  > 1. 在探测区域没有Blob的时候，软件处于休眠状态，时间钟也会停止。 如果要判断是否运行正常，稍微遮挡雷达，图形中的时间会发生变化。
  > 2. 两个点之间的距离超过Angual Interval，Distance Interval时，分割线段。
  > 3. 尺寸超过SizeThreshold值的blob，才会被识别。
+ > 4. 添加的Map mode 和Raw mode 。 Map模式代表以左至右[-0.5,0.5],近处至远处[0,1]的范围发送OSC信息；Raw模式代表以距离信息发送osc信息。
