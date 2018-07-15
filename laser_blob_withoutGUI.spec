@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['laser_marker_finder.py'],
+a = Analysis(['laser_blob_withoutGUI.py'],
              pathex=['F:\\Laser_Marker_Finder'],
              binaries=[],
              datas=[],
@@ -18,16 +18,12 @@ pyz = PYZ(a.pure, a.zipped_data,
              cipher=block_cipher)
 exe = EXE(pyz,
           a.scripts,
-          exclude_binaries=True,
-          name='laser_marker_finder',
+          a.binaries,
+          a.zipfiles,
+          a.datas,
+          name='laser_blob_withoutGUI',
           debug=False,
           strip=False,
           upx=True,
+          runtime_tmpdir=None,
           console=True , icon='quill.ico')
-coll = COLLECT(exe,
-               a.binaries,
-               a.zipfiles,
-               a.datas,
-               strip=False,
-               upx=True,
-               name='laser_marker_finder')

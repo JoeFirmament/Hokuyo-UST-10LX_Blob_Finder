@@ -245,15 +245,18 @@ def update():
                 for i in range(len(midpoints)):
                     if mode_send.get() == 1:
                         #为了配合之前的C++雷达代码，协议按照之前的方式来写。
-                        OSC_msg_raw.append(float(midpoints[i][0])/float(abs(float(area_right)-float(area_left))))   # [-0.5,0.5]
-                        OSC_msg_raw.append((float(midpoints[i][1])-float(area_near))/float(abs(float(area_far)-float(area_near))))   # [0,1]
+                        deltaX = (abs(float(area_right))-abs(float(area_left)))/2.0
+                        x = (float(midpoints[i][0])-deltaX)/float(abs(float(area_right)-float(area_left)))
+                        y = ((float(midpoints[i][1])-float(area_near)))/float(abs(float(area_far)-float(area_near)))
+                        OSC_msg_raw.append(x)
+                        OSC_msg_raw.append(y)
                         OSC_msg_raw.append(float(0.0))
-                    # 下面是正常代码
+                    # 下面是原始物理位置的发送代码
                     elif mode_send.get() == 0:
                         OSC_msg_raw.append(float(midpoints[i][0]))
                         OSC_msg_raw.append(float(midpoints[i][1]))
                         OSC_msg_raw.append(float(0.0))
-                msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
+                msg = oscbuildparse.OSCMessage("/blob/", None, OSC_msg_raw)
                 osc_send(msg, "aclientname")
                 osc_process()
     except Exception as e:
@@ -703,6 +706,7 @@ raw_mode_rad.grid(column=1, row=5)
 msg_text.tag_config('RED', background='red')
 
 try:
+    print(sensor_ip)
     laser = HokuyoLX(
         addr=(str(sensor_ip), int(sensor_port)),
         info=False,

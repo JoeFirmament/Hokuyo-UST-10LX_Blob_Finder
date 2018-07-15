@@ -227,9 +227,12 @@ def update():
                     OSC_msg_raw.append(float(midpoints[i][1]))
                     OSC_msg_raw.append(float(0.0))
                 else:
-                    OSC_msg_raw.append(float(midpoints[i][0])/float(abs(float(area_right)-float(area_left))))   # [-0.5,0.5]
-                    OSC_msg_raw.append((float(midpoints[i][1])-float(area_near))/float(abs(float(area_far)-float(area_near))))   # [0,1]
-                    OSC_msg_raw.append(float(0.0))    
+                    deltaX = (abs(float(area_right))-abs(float(area_left)))/2.0
+                    x = (float(midpoints[i][0])-deltaX)/float(abs(float(area_right)-float(area_left)))
+                    y = ((float(midpoints[i][1])-float(area_near)))/float(abs(float(area_far)-float(area_near)))
+                    OSC_msg_raw.append(x)
+                    OSC_msg_raw.append(y)
+                    OSC_msg_raw.append(float(0.0))  
             msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
             osc_send(msg, "aclientname")
             osc_process()
@@ -310,9 +313,10 @@ try:
         buf=1024,
         time_tolerance=1000,
         convert_time=False)
+    print("Connect "+str(sensor_ip)+"\n")
 except Exception as e:
     print(e)
-    print("[ERR]Sensor connect failed " + time.strftime("%X") + "\n")
+    print("[ERR]Sensor connect failed " + time.strftime("%X") +"@"+sensor_ip+"\n")
     errFlag = True
 while True:
     update()
