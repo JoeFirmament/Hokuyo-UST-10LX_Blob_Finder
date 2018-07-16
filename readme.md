@@ -20,9 +20,10 @@
 ## 注意事项：
 
  > 1. 在探测区域没有Blob的时候，软件处于休眠状态，时间钟也会停止。 如果要判断是否运行正常，稍微遮挡雷达，图形中的时间会发生变化。
- > 2. 两个点之间的距离超过Angual Interval，Distance Interval时，分割线段。
+ > 2. Angual Interval，Distance Interval用来分隔Blob，极坐标模式下（PolarMode）先判断点之间的角度差超过Angual Interval ，再判断距离差超过Distance Interval，分隔Blob。笛卡尔坐标系下只用Distance Interval来分隔。
  > 3. 尺寸超过SizeThreshold值的blob，才会被识别。
  > 4. 添加的Map mode 和Raw mode 。 Map模式代表以左至右[-0.5,0.5],近处至远处[0,1]的范围发送OSC信息；Raw模式代表以距离信息发送osc信息。
+ > 5. Map模式下，X轴原点为左右距离的中点。Y轴原点为Near点
 
  ## 相关链接：
  > [osc4py3文档](http://osc4py3.readthedocs.io/en/latest/)
