@@ -23,3 +23,12 @@
  > 2. 两个点之间的距离超过Angual Interval，Distance Interval时，分割线段。
  > 3. 尺寸超过SizeThreshold值的blob，才会被识别。
  > 4. 添加的Map mode 和Raw mode 。 Map模式代表以左至右[-0.5,0.5],近处至远处[0,1]的范围发送OSC信息；Raw模式代表以距离信息发送osc信息。
+
+ ## 相关链接：
+ > [osc4py3文档](http://osc4py3.readthedocs.io/en/latest/)
+
+ > [osc4py3@github](https://github.com/Xinne/osc4py3)
+
+ >[hokuyolx@github](https://github.com/SkoltechRobotics/hokuyolx)
+
+ >[hokuyolx文档](http://hokuyolx.readthedocs.io/en/latest/)
