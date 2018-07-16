@@ -233,11 +233,15 @@ def update():
                     OSC_msg_raw.append(x)
                     OSC_msg_raw.append(y)
                     OSC_msg_raw.append(float(0.0))  
-            msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
-            osc_send(msg, "osc")
-            osc_process()
-            if debug_ON:
-                print(OSC_msg_raw)
+        else:
+            OSC_msg_raw.clear()
+            OSC_msg_raw.append(0)
+        msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
+        osc_send(msg, "osc")
+        osc_process()
+        if debug_ON:
+            print(OSC_msg_raw)
+        
     except Exception as e:
         print("Sensor msg rev failed\n")
 
