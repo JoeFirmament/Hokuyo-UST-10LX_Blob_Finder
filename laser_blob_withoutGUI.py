@@ -234,7 +234,7 @@ def update():
                     OSC_msg_raw.append(y)
                     OSC_msg_raw.append(float(0.0))  
             msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
-            osc_send(msg, "aclientname")
+            osc_send(msg, "osc")
             osc_process()
             if debug_ON:
                 print(OSC_msg_raw)
@@ -304,7 +304,7 @@ if args.map == 'OFF':
 # Start the system.
 osc_startup()
 # Make client channels to send packets.
-osc_udp_client(osc_host_ip, int(osc_host_port), "aclientname")
+osc_udp_client(osc_host_ip, int(osc_host_port), "osc")
 
 try:
     laser = HokuyoLX(

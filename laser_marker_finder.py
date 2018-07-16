@@ -200,106 +200,96 @@ def update():
     global area_far, area_left, area_near, area_right
     global OSC_msg_raw
     midpoints = []
-    scan_pol_filter = []
-
-    try:
-        if errFlag is True:
-            msg_text.insert(
-                1.0, "[ERR]" + "Check Sensor connection and reopen the app " +
-                time.strftime("%X") + "\n")
+    scan_pol_filter = [] 
+    if errFlag is False:
+        try:
+            timestamp, scan = laser.get_filtered_dist(start=180, end=900, dmax=10000)
+            # timestamp 是一个int类型，scan是[弧度，距离]的2维列表集合；
+            # start=180，end=900，是step的范围，lx10的step是1080steps，1080*1/6得到180，1080*5/6=900，只需要正前方的0°~180°的识别范围
+            # print(scan[0][0]) 得到弧度值 -1.57,对应极坐标的270°/-90°
+            # print(scan[720][0]) 得到弧度值1.57，对应90°
+            # print(scan.size) 所占字节数 2162
+            # print(scan.ndim) 维度 2
+            # print(scan.shape)  #形状  (1081,2)
+            # scan 是一个 1081行2列的List
+            # 极坐标转为笛卡尔坐标，return为笛卡尔坐标系list
+            scan_cart = list(map(pol2cart_tuple, scan))
+            scan_cart_filter = list(filter(
+                cart_fliter, scan_cart))  # 根据area range值，得到需要的扫描区域的笛卡尔坐标系点list
+            if len(scan_cart_filter) > 1:
+                scan_pol_filter = list(map(
+                    cart2pol_tuple, scan_cart_filter))  # 过滤后的扫描区笛卡尔坐标系值，转为极坐标点list
+                if mode_filter.get() == 1:
+                    points = consecutive_pol(
+                        np.asarray(scan_pol_filter), int(marker_distance_interval),
+                        float(marker_angual_interval)
+                    )  # 把得到的点分组，根据rho的间隙，如果超过100mm，就分为另外一组，返回笛卡尔坐标系的点
+                else:
+                    points = consecutive_cart(
+                        np.asarray(scan_cart_filter), int(marker_distance_interval))
+                points = list(
+                    filter(lambda x: continuous_filter(x, blob_size_threshold),
+                           points))
+                midpoints = midpoint_finder(points)
+                if osc_on_off_rad.get() == 1:
+                    OSC_msg_raw.clear()
+                    OSC_msg_raw.append(len(midpoints))
+                    for i in range(len(midpoints)):
+                        if mode_send.get() == 1:
+                            #为了配合之前的C++雷达代码，协议按照之前的方式来写。
+                            deltaX = (abs(float(area_right))-abs(float(area_left)))/2.0
+                            x = (float(midpoints[i][0])-deltaX)/float(abs(float(area_right)-float(area_left)))
+                            y = ((float(midpoints[i][1])-float(area_near)))/float(abs(float(area_far)-float(area_near)))
+                            OSC_msg_raw.append(x)
+                            OSC_msg_raw.append(y)
+                            OSC_msg_raw.append(float(0.0))
+                        # 下面是原始物理位置的发送代码
+                        elif mode_send.get() == 0:
+                            OSC_msg_raw.append(float(midpoints[i][0]))
+                            OSC_msg_raw.append(float(midpoints[i][1]))
+                            OSC_msg_raw.append(float(0.0))
+                    msg = oscbuildparse.OSCMessage("/blob", None, OSC_msg_raw)
+                    osc_send(msg, "osc")
+                    osc_process()
+            if plot_on_off_rad.get() == 1:
+                if len(midpoints) > 0:
+                    points_pol = list(map(cart2pol_tuple, midpoints))
+                    plot_marker.set_marker("+")
+                    plot_marker.set_linestyle(" ")
+                    plot_marker.set_markersize(50)
+                    plot_marker.set_data(*np.array(points_pol).T)
+                else:
+                    plot_marker.set_data([], [])
+                point_R, point_theta = range_plot(
+                    range_point)  # 把笛卡尔坐标转为极坐标，返回两个list
+                point_R.append(point_R[0])  # 把第一个元素再添加进list，为了显示时闭合。
+                point_theta.append(point_theta[0])
+                if rad_selected.get() == 2:  # line mode
+                    plot.set_linestyle('--')
+                    plot.set_marker("_")
+                elif rad_selected.get() == 1:  # dot mode
+                    plot.set_marker(",")
+                    plot.set_linestyle(" ")
+                    plot.set_markersize(16)
+                if autoscale_rad.get() == 1:  # 自动缩放开启
+                    if len(midpoints)>0:
+                        plot.set_data(*np.array(scan_pol_filter).T)  # 根据area range值，过滤后的数据再转回极坐标，显示在图像上。
+                    # ax.relim()
+                        ax.set_rlim(0, plot_limit, 1)
+                    # ax.autoscale_view(True,True,True)
+                elif autoscale_rad.get() == 0:
+                    ax.set_rmax(10000)
+                    plot.set_data(
+                        *scan.T
+                    )  # line mode *scan.T 意思是将scan转置矩阵后，unpack ,把每个元素都代进函数
+                plot_range.set_data([x - np.pi / 2 for x in point_theta],
+                                    point_R)  # transform plot cw 90 degree
+            text.set_text('Sensor Time: %d ms \nPorgram Time: %d s' %
+                    (timestamp, time.time() - start_time))
+            plt.draw()
+        except Exception as e:
+            msg_text.insert(1.0, "[UPDATE_ERR] "+str(e)+time.strftime("%X")+"\n")
             msg_text.tag_add("RED", "1.0")
-            return
-        timestamp, scan = laser.get_filtered_dist(start=180, end=900, dmax=10000)
-        # timestamp 是一个int类型，scan是[弧度，距离]的2维列表集合；
-        # start=180，end=900，是step的范围，lx10的step是1080steps，1080*1/6得到180，1080*5/6=900，只需要正前方的0°~180°的识别范围
-        # print(scan[0][0]) 得到弧度值 -1.57,对应极坐标的270°/-90°
-        # print(scan[720][0]) 得到弧度值1.57，对应90°
-        # print(scan.size) 所占字节数 2162
-        # print(scan.ndim) 维度 2
-        # print(scan.shape)  #形状  (1081,2)
-        # scan 是一个 1081行2列的List
-
-        # 极坐标转为笛卡尔坐标，return为笛卡尔坐标系list
-        scan_cart = list(map(pol2cart_tuple, scan))
-        scan_cart_filter = list(filter(
-            cart_fliter, scan_cart))  # 根据area range值，得到需要的扫描区域的笛卡尔坐标系点list
-        if len(scan_cart_filter) > 1:
-            scan_pol_filter = list(map(
-                cart2pol_tuple, scan_cart_filter))  # 过滤后的扫描区笛卡尔坐标系值，转为极坐标点list
-            if mode_filter.get() == 1:
-                points = consecutive_pol(
-                    np.asarray(scan_pol_filter), int(marker_distance_interval),
-                    float(marker_angual_interval)
-                )  # 把得到的点分组，根据rho的间隙，如果超过100mm，就分为另外一组，返回笛卡尔坐标系的点
-            else:
-                points = consecutive_cart(
-                    np.asarray(scan_cart_filter), int(marker_distance_interval))
-            points = list(
-                filter(lambda x: continuous_filter(x, blob_size_threshold),
-                       points))
-            midpoints = midpoint_finder(points)
-            if osc_on_off_rad.get() == 1:
-                OSC_msg_raw.clear()
-
-                OSC_msg_raw.append(len(midpoints))
-                for i in range(len(midpoints)):
-                    if mode_send.get() == 1:
-                        #为了配合之前的C++雷达代码，协议按照之前的方式来写。
-                        deltaX = (abs(float(area_right))-abs(float(area_left)))/2.0
-                        x = (float(midpoints[i][0])-deltaX)/float(abs(float(area_right)-float(area_left)))
-                        y = ((float(midpoints[i][1])-float(area_near)))/float(abs(float(area_far)-float(area_near)))
-                        OSC_msg_raw.append(x)
-                        OSC_msg_raw.append(y)
-                        OSC_msg_raw.append(float(0.0))
-                    # 下面是原始物理位置的发送代码
-                    elif mode_send.get() == 0:
-                        OSC_msg_raw.append(float(midpoints[i][0]))
-                        OSC_msg_raw.append(float(midpoints[i][1]))
-                        OSC_msg_raw.append(float(0.0))
-                msg = oscbuildparse.OSCMessage("/blob/", None, OSC_msg_raw)
-                osc_send(msg, "aclientname")
-                osc_process()
-    except Exception as e:
-        msg_text.insert(1.0, "[ERR] "+str(e)+time.strftime("%X")+"\n")
-        msg_text.tag_add("RED", "1.0")
-
-    if plot_on_off_rad.get() == 1:
-        if len(midpoints) > 0:
-            points_pol = list(map(cart2pol_tuple, midpoints))
-            plot_marker.set_marker("+")
-            plot_marker.set_linestyle(" ")
-            plot_marker.set_markersize(50)
-            plot_marker.set_data(*np.array(points_pol).T)
-        else:
-            plot_marker.set_data([], [])
-        point_R, point_theta = range_plot(
-            range_point)  # 把笛卡尔坐标转为极坐标，返回两个list
-        point_R.append(point_R[0])  # 把第一个元素再添加进list，为了显示时闭合。
-        point_theta.append(point_theta[0])
-        if rad_selected.get() == 2:  # line mode
-            plot.set_linestyle('--')
-            plot.set_marker("_")
-        elif rad_selected.get() == 1:  # dot mode
-            plot.set_marker(",")
-            plot.set_linestyle(" ")
-            plot.set_markersize(16)
-        if autoscale_rad.get() == 1:  # 自动缩放开启
-            if len(midpoints)>0:
-                plot.set_data(*np.array(scan_pol_filter).T)  # 根据area range值，过滤后的数据再转回极坐标，显示在图像上。
-            # ax.relim()
-                ax.set_rlim(0, plot_limit, 1)
-            # ax.autoscale_view(True,True,True)
-        elif autoscale_rad.get() == 0:
-            ax.set_rmax(10000)
-            plot.set_data(
-                *scan.T
-            )  # line mode *scan.T 意思是将scan转置矩阵后，unpack ,把每个元素都代进函数
-        plot_range.set_data([x - np.pi / 2 for x in point_theta],
-                            point_R)  # transform plot cw 90 degree
-    text.set_text('Sensor Time: %d ms \nPorgram Time: %d s' %
-                  (timestamp, time.time() - start_time))
-    plt.draw()
-
     win.after(10, update)
 
 
@@ -371,6 +361,8 @@ def write_conf():
     global blob_size_threshold
     global marker_angual_interval
     global marker_distance_interval
+    global laser
+    global errFlag
 
     cf = configparser.ConfigParser()
     sensor_ip = sVar_sensor_ip.get()
@@ -404,6 +396,30 @@ def write_conf():
     cf.set("MARKER", "marker_distance_interval", str(marker_distance_interval))
     cf.set("MARKER", "marker_angual_interval", str(marker_angual_interval))
     cf.set("MARKER", "blob_size_threshold", str(blob_size_threshold))
+
+   # TO DO 
+    #osc_terminate()
+    #osc_startup()
+    #osc_udp_client(str(osc_host_ip), int(osc_host_port), "osc")
+
+    try:
+        laser.close()
+        laser = HokuyoLX(
+                addr=(str(sensor_ip), int(sensor_port)),
+                info=False,
+                buf=1024,
+                time_tolerance=1000,
+                convert_time=False)
+        msg_text.insert(1.0,
+                    "[MSG]Sensor connected  " + time.strftime("%X") + "\n")
+        msg_text.tag_remove("RED", "1.0")
+        errFlag = False
+
+    except Exception as e:
+        msg_text.insert(1.0,
+                        "[ERR]Sensor connect failed " + time.strftime("%X") + "\n")
+        msg_text.tag_add("RED", "1.0")
+        errFlag = True
 
     with open('config.conf', 'w') as configfile:
         cf.write(configfile)
@@ -467,8 +483,8 @@ read_conf()
 # Start the system.
 osc_startup()
 # Make client channels to send packets
-osc_udp_client(str(osc_host_ip), int(osc_host_port), "aclientname")
-#osc_udp_client("127.0.0.1", 12345, "aclientname")
+osc_udp_client(str(osc_host_ip), int(osc_host_port), "osc")
+
 matplotlib.use('tkagg')
 # plt.style.use("ggplot")
 # plt.style.use('fivethirtyeight')
@@ -706,7 +722,6 @@ raw_mode_rad.grid(column=1, row=5)
 msg_text.tag_config('RED', background='red')
 
 try:
-    print(sensor_ip)
     laser = HokuyoLX(
         addr=(str(sensor_ip), int(sensor_port)),
         info=False,
