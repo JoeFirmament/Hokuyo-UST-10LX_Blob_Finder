@@ -23,7 +23,8 @@
  > 2. Angual Interval，Distance Interval用来分隔Blob，极坐标模式下（PolarMode）先判断点之间的角度差超过Angual Interval ，再判断距离差超过Distance Interval，分隔Blob。笛卡尔坐标系下只用Distance Interval来分隔。
  > 3. 尺寸超过SizeThreshold值的blob，才会被识别。
  > 4. 添加的Map mode 和Raw mode 。 Map模式代表以左至右[-0.5,0.5],近处至远处[0,1]的范围发送OSC信息；Raw模式代表以距离信息发送osc信息。
- > 5. Map模式下，X轴原点为左右距离的中点。Y轴原点为Near点
+ > 5. Map模式下，X轴原点为左右距离的中点。Y轴原点为Near点。
+ > 6. map-left，map-near,map-right，map-far不管正负都取绝对值，均为1时，X的范围为 -0.5（左）~+0.5（右），Y范围为 0（近）~1（远）（均以雷达为观察主视角），map-left用来调整X为负值时的缩放量，map-right用来调整X值为正值时的缩放量；map-near用来调整Y值为<=0.5时的缩放量,map-far 用来调整Y值为>0.5时的缩放量。
 
  ## 相关链接：
  > [osc4py3文档](http://osc4py3.readthedocs.io/en/latest/)

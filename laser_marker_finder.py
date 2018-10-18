@@ -19,8 +19,8 @@ area_right = 8000
 area_near = 0
 area_far = 2000
 map_left = 1
-map_right = -1
-map_near = 0
+map_right = 1
+map_near = 1
 map_far = 1
 marker_angual_interval = 0.01
 marker_distance_interval = 100
@@ -236,10 +236,25 @@ def update():
                     OSC_msg_raw.append(len(midpoints))
                     for i in range(len(midpoints)):
                         if mode_send.get() == 1:
-                            #为了配合之前的C++雷达代码，协议按照之前的方式来写。
+                            # 为了配合之前的C++雷达代码，协议按照之前的方式来写。
+                            # map-left，map-near,map-right，map-far
+                            # 不管正负都取绝对值.
+                            # 均为1时，X的范围为 -0.5（左）~+0.5（右），Y范围为 0（近）~1（远）（均以雷达为观察主视角）
+                            # map-left用来调整X为负值时的缩放量，map-right用来调整X值为正值时的缩放量；
+                            # map-near用来调整Y值为<=0.5时的缩放量,map-far 用来调整Y值为>0.5时的缩放量；
                             deltaX = (abs(float(area_right))-abs(float(area_left)))/2.0
                             x = (float(midpoints[i][0])-deltaX)/float(abs(float(area_right)-float(area_left)))
                             y = ((float(midpoints[i][1])-float(area_near)))/float(abs(float(area_far)-float(area_near)))
+
+                            if x < 0:
+                                x = x*abs(float(map_left))
+                            if x > 0:
+                                x = x*abs(float(map_right))
+                            if y <= 0.5:
+                                y = y*abs(float(map_near))
+                            if y > 0.5:
+                                y = y*abs(float(map_far))
+
                             OSC_msg_raw.append(x)
                             OSC_msg_raw.append(y)
                             OSC_msg_raw.append(float(0.0))
@@ -453,12 +468,14 @@ sVar_osc_host_ip = tk.StringVar(win, value=osc_host_ip)
 sVar_osc_host_port = tk.StringVar(win, value=osc_host_port)
 sVar_area_left = tk.StringVar(win, value=area_left)
 sVar_area_right = tk.StringVar(win, value=area_right)
+sVar_area_near = tk.StringVar(win, value=area_near)
+sVar_area_far = tk.StringVar(win, value=area_far)
+
 sVar_map_left = tk.StringVar(win, value=map_left)
 sVar_map_right = tk.StringVar(win, value=map_right)
-sVar_area_near = tk.StringVar(win, value=area_near)
 sVar_map_near = tk.StringVar(win, value=map_near)
 sVar_map_far = tk.StringVar(win, value=map_far)
-sVar_area_far = tk.StringVar(win, value=area_far)
+
 sVar_marker_angual_interval = tk.StringVar(win, value=marker_angual_interval)
 sVar_marker_distance_interval = tk.StringVar(
     win, value=marker_distance_interval)
@@ -582,10 +599,10 @@ map_right_E = tk.Entry(
     map_fr, textvariable=sVar_map_right, width=20, bg='misty rose').grid(
         column=1, row=1, sticky='w')
 map_near_E = tk.Entry(
-    map_fr, textvariable=sVar_map_left, width=20, bg='misty rose').grid(
+    map_fr, textvariable=sVar_map_near, width=20, bg='misty rose').grid(
         column=1, row=2, sticky='w')
 map_far_E = tk.Entry(
-    map_fr, textvariable=sVar_map_right, width=20, bg='misty rose').grid(
+    map_fr, textvariable=sVar_map_far, width=20, bg='misty rose').grid(
         column=1, row=3, sticky='w')
 marker_angual_interval_E = tk.Entry(
     marker_fr,
@@ -701,7 +718,8 @@ raw_mode_rad = tk.Radiobutton(
     bg='light cyan',
     width=15)
 
-msg_text = tk.Text(msg_fr, width=40, height=8)
+#Height and width of MSG
+msg_text = tk.Text(msg_fr, width=40, height=4) 
 msg_text.grid(column=0, row=0)
 
 load_conf_btn.grid(column=0, row=6)
@@ -726,6 +744,7 @@ try:
         addr=(str(sensor_ip), int(sensor_port)),
         info=False,
         buf=1024,
+        timeout=300,
         time_tolerance=1000,
         convert_time=False)
     msg_text.insert(1.0,

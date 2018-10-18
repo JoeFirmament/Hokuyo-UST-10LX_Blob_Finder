@@ -230,6 +230,16 @@ def update():
                     deltaX = (abs(float(area_right))-abs(float(area_left)))/2.0
                     x = (float(midpoints[i][0])-deltaX)/float(abs(float(area_right)-float(area_left)))
                     y = ((float(midpoints[i][1])-float(area_near)))/float(abs(float(area_far)-float(area_near)))
+
+
+                    if x < 0:
+                        x = x*abs(float(map_left))
+                    if x > 0:
+                        x = x*abs(float(map_right))
+                    if y <= 0.5:
+                        y = y*abs(float(map_near))
+                    if y > 0.5:
+                        y = y*abs(float(map_far))
                     OSC_msg_raw.append(x)
                     OSC_msg_raw.append(y)
                     OSC_msg_raw.append(float(0.0))  
@@ -240,10 +250,15 @@ def update():
         osc_send(msg, "osc")
         osc_process()
         if debug_ON:
+            #print("left",map_left,"/n")
+            #print("right",map_right,"/n")
+            #print("near",map_near,"/n")
+            #print("far",map_far,"/n")
             print(OSC_msg_raw)
         
     except Exception as e:
         print("Sensor msg rev failed\n")
+        print(e)
 
 
 def read_conf():
@@ -310,17 +325,19 @@ osc_startup()
 # Make client channels to send packets.
 osc_udp_client(osc_host_ip, int(osc_host_port), "osc")
 
+
 try:
     laser = HokuyoLX(
         addr=(str(sensor_ip), int(sensor_port)),
         info=False,
         buf=1024,
+        timeout=300,
         time_tolerance=1000,
         convert_time=False)
     print("Connect "+str(sensor_ip)+"\n")
 except Exception as e:
     print(e)
-    print("[ERR]Sensor connect failed " + time.strftime("%X") +"@"+sensor_ip+"\n")
+    print("[ERR]Sensor connect failed " + time.strftime("%X") + "@" +sensor_ip+"\n")
     errFlag = True
 while True:
     update()
